@@ -11,7 +11,7 @@ char *newLine, *strPtr;
    {
       if( ( strPtr = strchr( message, ' ' ) ) != NULL )
       {
-         if( ( request-> method = strndup( message, strPtr - message ) ) == NULL )
+         if( ( request-> method = strndup( message, ( size_t )( strPtr - message ) ) ) == NULL )
          {
             return NULL;
          }
@@ -19,7 +19,7 @@ char *newLine, *strPtr;
 
          if( ( strPtr = strchr( message, ' ' ) ) != NULL )
          {
-            if( ( request-> URI = strndup( message, strPtr - message ) ) == NULL )
+            if( ( request-> URI = strndup( message, ( size_t )( strPtr - message ) ) ) == NULL )
             {
                return NULL;
             }
@@ -39,7 +39,7 @@ char *newLine, *strPtr;
                return NULL;
             }
          }
-         if( ( request-> version = strndup( message, newLine - message ) ) == NULL )
+         if( ( request-> version = strndup( message, ( size_t )( newLine - message ) ) ) == NULL )
          {
             return NULL;
          }
@@ -57,14 +57,14 @@ char *newLine, *strPtr;
 
                   if( ( strPtr = strchr( message, ':' ) ) != NULL )
                   {
-                     if( ( key = strndup( message, strPtr - message ) ) == NULL )
+                     if( ( key = strndup( message, ( size_t )( strPtr - message ) ) ) == NULL )
                      {
                         return NULL;
                      }
                      else
                      {
                         strPtr += 2;
-                        if( ( value = strndup( strPtr, newLine - strPtr ) ) == NULL )
+                        if( ( value = strndup( strPtr, ( size_t )( newLine - strPtr ) ) ) == NULL )
                         {
                            free( key );
                            return NULL;
