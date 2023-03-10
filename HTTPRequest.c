@@ -17,31 +17,26 @@ char *newLine, *strPtr;
          }
          message = strPtr + 1;
 
-         if( ( strPtr = strchr( message, ' ' ) ) != NULL )
+         strPtr = strchr( message, ' ' );
+         strPtr = strPtr ? strPtr : newLine;
+
+         if( ( request-> URI = strndup( message, ( size_t )( strPtr - message ) ) ) == NULL )
          {
-            if( ( request-> URI = strndup( message, ( size_t )( strPtr - message ) ) ) == NULL )
-            {
-               return NULL;
-            }
-            message = strPtr + 1;
+            return NULL;
+         }
+
+         if( strPtr == newLine && strcmp( request-> method, "GET" ) != 0 )
+         {
+            return NULL;
          }
          else
          {
-            if( strcmp( request-> method, "GET" ) == 0 )
-            {
-               if( ( request-> URI = strdup( "/" ) ) == NULL )
-               {
-                  return NULL;
-               }
-            }
-            else
+            message = strPtr + 1;
+
+            if( *message != '\n' && ( request-> version = strndup( message, ( size_t )( newLine - message ) ) ) == NULL )
             {
                return NULL;
             }
-         }
-         if( ( request-> version = strndup( message, ( size_t )( newLine - message ) ) ) == NULL )
-         {
-            return NULL;
          }
          message = newLine + 2;
          newLine = strstr( message, "\r\n" );
