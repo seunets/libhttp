@@ -72,13 +72,10 @@ char *newLine, *strPtr;
             }
          }
          message += 2;
-         if( *message && ( response-> body = strdup( message ) ) == NULL )
-         {
-            return NULL;
-         }
       }
    }
-   else
+
+   if( *message && ( response-> body = strdup( message ) ) == NULL )
    {
       return NULL;
    }
