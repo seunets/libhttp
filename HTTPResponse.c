@@ -7,7 +7,7 @@ static HTTPResponse_t * parse( HTTPResponse_t *response, char *message )
 {
 char *newLine, *strPtr;
 
-   if( ( newLine = strstr( message, "\r\n" ) ) != NULL )
+   if( ( newLine = strstr( message, "\r\n" ) ) != NULL && strncmp( message, "HTTP/", 5 ) == 0 )
    {
       if( ( strPtr = strchr( message, ' ' ) ) != NULL )
       {
@@ -65,10 +65,6 @@ char *newLine, *strPtr;
                      message = newLine + 2;
                   }
                }
-            }
-            else
-            {
-               return NULL;
             }
          }
          message += 2;
