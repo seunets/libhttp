@@ -39,65 +39,81 @@ char *newLine, *strPtr, *p, *q;
             p -= 2;
          }
 
-         if( strPtr == newLine && strcmp( request-> method, "GET" ) != 0 )
-         {
-            return NULL;
-         }
-         else
+         if( strPtr != newLine )
          {
             message = strPtr + 1;
-
-            if( *message != '\n' && ( request-> version = strndup( message, ( size_t )( newLine - message ) ) ) == NULL )
+            if( strncmp( message, "HTTP/", 5 ) != 0 || ( request-> version = strndup( message, ( size_t )( newLine - message ) ) ) == NULL )
             {
                return NULL;
             }
-         }
-         message = newLine + 2;
-         newLine = strstr( message, "\r\n" );
-         if( newLine - message > 2 )
-         {
-         char *headersEnd;
-
-            if( ( headersEnd = strstr( message, "\r\n\r\n" ) ) != NULL )
+            message = newLine + 2;
+            newLine = strstr( message, "\r\n" );
+            if( newLine - message > 2 )
             {
-               for( ; message < headersEnd; newLine = strstr( message, "\r\n" ) )
-               {
-               char *key, *value;
+            char *headersEnd;
 
-                  if( ( strPtr = strchr( message, ':' ) ) != NULL )
+               if( ( headersEnd = strstr( message, "\r\n\r\n" ) ) != NULL )
+               {
+                  for( ; message < headersEnd; newLine = strstr( message, "\r\n" ) )
                   {
-                     if( ( key = strndup( message, ( size_t )( strPtr - message ) ) ) == NULL )
+                  char *key, *value;
+
+                     if( ( strPtr = strchr( message, ':' ) ) != NULL )
                      {
-                        return NULL;
-                     }
-                     else
-                     {
-                        strPtr += 2;
-                        if( ( value = strndup( strPtr, ( size_t )( newLine - strPtr ) ) ) == NULL )
+                        if( ( key = strndup( message, ( size_t )( strPtr - message ) ) ) == NULL )
                         {
-                           free( key );
                            return NULL;
                         }
                         else
                         {
-                           request-> headers-> set( request-> headers, key, value );
-                           free( value );
-                           free( key );
+                           strPtr += 2;
+                           if( ( value = strndup( strPtr, ( size_t )( newLine - strPtr ) ) ) == NULL )
+                           {
+                              free( key );
+                              return NULL;
+                           }
+                           else
+                           {
+                              request-> headers-> set( request-> headers, key, value );
+                              free( value );
+                              free( key );
+                           }
                         }
                      }
+                     message = newLine + 2;
                   }
-                  message = newLine + 2;
                }
+               else
+               {
+                  return NULL;
+               }
+            }
+            message += 2;
+            if( strcmp( request-> method, "GET" ) != 0 )
+            {
+            const char *contentLength = request-> headers-> get( request-> headers, "Content-Length" );
+            size_t bodySize;
+
+               if( contentLength == NULL || ( request-> body = malloc( bodySize = strtoull( contentLength, NULL, 10 ) ) ) == NULL )
+               {
+                  return NULL;
+               }
+               memmove( request-> body, message, bodySize );
             }
             else
             {
-               return NULL;
+               if( *message )
+               {
+                  return NULL;
+               }
             }
          }
-         message += 2;
-         if( strcmp( request-> method, "GET" ) != 0 && *message && ( request-> body = strdup( message ) ) == NULL )
+         else
          {
-            return NULL;
+            if( strcmp( request-> method, "GET" ) != 0 )
+            {
+               return NULL;
+            }
          }
       }
    }
