@@ -6,12 +6,14 @@
 
 static HTTPRequest_t * parse( HTTPRequest_t *request, char *message )
 {
-char *newLine, *strPtr, *p, *q;
+char *newLine, *strPtr;
 
    if( ( newLine = strstr( message, "\r\n" ) ) != NULL )
    {
       if( ( strPtr = strchr( message, ' ' ) ) != NULL )
       {
+      char *p, *q;
+
          if( ( request-> method = strndup( message, ( size_t )( strPtr - message ) ) ) == NULL )
          {
             return NULL;
