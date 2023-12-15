@@ -1,6 +1,3 @@
-#include <stdlib.h>
-#include <string.h>
-#include <stdio.h>
 #include "includes/HTTPHeader.h"
 
 
@@ -17,27 +14,27 @@ char **rv;
 }
 
 
-static int reallocHeaders( HTTPHeader_t *header, long int size )
+static int reallocHeaders( HTTPHeader_t *this, long int size )
 {
 int rv = -1;
 long int i;
 char **p;
 
-   for( i = 0; header-> keys[ i ] != NULL; i++ );
+   for( i = 0; this-> keys[ i ] != NULL; i++ );
 
-   if( ( p = reallocStringArray( header-> keys, size ) ) != NULL )
+   if( ( p = reallocStringArray( this-> keys, size ) ) != NULL )
    {
-      header-> keys = p;
-      if( ( p = reallocStringArray( header-> values, size ) ) != NULL )
+      this-> keys = p;
+      if( ( p = reallocStringArray( this-> values, size ) ) != NULL )
       {
-         header-> values = p;
-         header-> keys[ size - 1 ] = NULL;
-         header-> values[ size - 1 ] = NULL;
+         this-> values = p;
+         this-> keys[ size - 1 ] = NULL;
+         this-> values[ size - 1 ] = NULL;
          rv = 0;
       }
       else
       {
-         reallocStringArray( header-> keys, i );
+         reallocStringArray( this-> keys, i );
       }
    }
    return rv;
@@ -54,44 +51,44 @@ long int i;
 }
 
 
-static int set( HTTPHeader_t *header, const char *key, const char *value )
+static int set( HTTPHeader_t *this, const char *key, const char *value )
 {
 int rv = -1;
 long int i;
 char *tmp;
 
-   if( ( i = find( header-> keys, key ) ) == -1 )
+   if( ( i = find( this-> keys, key ) ) == -1 )
    {
-      for( i = 0; header-> keys[ i ] != NULL; i++ );
+      for( i = 0; this-> keys[ i ] != NULL; i++ );
 
-      if( reallocHeaders( header, i + 2 ) == 0 )
+      if( reallocHeaders( this, i + 2 ) == 0 )
       {
-         if( ( header-> keys[ i ] = strdup( key ) ) != NULL )
+         if( ( this-> keys[ i ] = strdup( key ) ) != NULL )
          {
-            if( ( header-> values[ i ] = strdup( value ) ) != NULL )
+            if( ( this-> values[ i ] = strdup( value ) ) != NULL )
             {
                rv = 0;
             }
             else
             {
-               reallocHeaders( header, i - 1 );
+               reallocHeaders( this, i - 1 );
             }
          }
          else
          {
-            reallocHeaders( header, i - 1 );
+            reallocHeaders( this, i - 1 );
          }
       }
    }
    else
    {
-      if( asprintf( &tmp, "%s, %s", header-> values[ i ], value ) != -1 )
+      if( asprintf( &tmp, "%s, %s", this-> values[ i ], value ) != -1 )
       {
-      char *tmp2 = header-> values[ i ];
+      char *tmp2 = this-> values[ i ];
 
-         if( ( header-> values[ i ] = strdup( tmp ) ) == NULL )
+         if( ( this-> values[ i ] = strdup( tmp ) ) == NULL )
          {
-            header-> values[ i ] = tmp2;
+            this-> values[ i ] = tmp2;
          }
          else
          {
@@ -106,50 +103,103 @@ char *tmp;
 }
 
 
-static const char * get( const HTTPHeader_t *header, const char *key )
+static const char * get( const HTTPHeader_t *this, const char *key )
 {
 const char *rv = NULL;
-long int i = find( header-> keys, key );
+long int i = find( this-> keys, key );
 
    if( i != -1 )
    {
-      rv = header-> values[ i ];
+      rv = this-> values[ i ];
    }
 
    return rv;
 }
 
 
-static void delete( const HTTPHeader_t *header )
+static void delete( HTTPHeader_t *this )
 {
-   for( long int i = 0; header-> keys != NULL && header-> keys[ i ] != NULL; i++ )
+   for( long int i = 0; this-> keys != NULL && this-> keys[ i ] != NULL; i++ )
    {
-      free( header-> keys[ i ] );
-      free( header-> values[ i ] );
+      free( this-> keys[ i ] );
+      free( this-> values[ i ] );
    }
-   free( header-> keys );
-   free( header-> values );
-   free( __DECONST( void *, header ) );
+   free( this-> keys );
+   free( this-> values );
+   free( this );
+}
+
+
+static void parse( HTTPHeader_t *this, const char *start, const char *end )
+{
+char *p = __DECONST( char *, start );
+
+   if( end != NULL )
+   {
+      while( p < end )
+      {
+      char *newLine, *sepPtr, *key, *value;
+
+         newLine = memmem( p, ( size_t )( end - p ), "\r\n", 2 );
+         newLine = newLine ? newLine : __DECONST( char *, end );
+
+         if( ( sepPtr = memchr( p, ':', ( size_t )( newLine - p ) ) ) != NULL )
+         {
+            *sepPtr = '\0';
+            key = p;
+
+            sepPtr += 2;
+            *newLine = '\0';
+            value = sepPtr;
+
+            set( this, key, value );
+         }
+         p = newLine + 2;
+      }
+   }
+}
+
+
+static const char * serialize( const HTTPHeader_t *this )
+{
+char *tmp1 = NULL, *tmp2 = NULL, *tmp3 = NULL;
+
+   for( long int i = 0; this-> keys[ i ]; i++ )
+   {
+      if( asprintf( &tmp1, "%s: %s\r\n", this-> keys[ i ], this-> values[ i ] ) != -1 )
+      {
+         if( asprintf( &tmp2, "%s%s", tmp3 ? tmp3 : "", tmp1 ) != -1 )
+         {
+            free( tmp1 );
+            free( tmp3 );
+            tmp3 = strdup( tmp2 );
+            free( tmp2 );
+         }
+      }
+   }
+   return tmp3 ? tmp3 : calloc( 1, sizeof( char ) );
 }
 
 
 HTTPHeader_t *HTTPHeader_new( void )
 {
-HTTPHeader_t *header;
+HTTPHeader_t *this;
 
-   if( ( header = calloc( 1, sizeof( HTTPHeader_t ) ) ) != NULL )
+   if( ( this = calloc( 1, sizeof( HTTPHeader_t ) ) ) != NULL )
    {
-      if( ( header-> keys = calloc( 1, sizeof( char ** ) ) ) != NULL )
+      if( ( this-> keys = calloc( 1, sizeof( char ** ) ) ) != NULL )
       {
-         if( ( header-> values = calloc( 1, sizeof( char ** ) ) ) != NULL )
+         if( ( this-> values = calloc( 1, sizeof( char ** ) ) ) != NULL )
          {
-            header-> set = set;
-            header-> get = get;
-            header-> delete = delete;
+            this-> set = set;
+            this-> get = get;
+            this-> parse = parse;
+            this-> serialize = serialize;
+            this-> delete = delete;
          }
          else
          {
-            free( header-> keys );
+            free( this-> keys );
             goto outerr;
          }
       }
@@ -158,16 +208,12 @@ HTTPHeader_t *header;
          goto outerr;
       }
    }
-   else
-   {
-      goto outerr;
-   }
 
 out:
-   return header;
+   return this;
 
 outerr:
-   free( header );
-   header = NULL;
+   free( this );
+   this = NULL;
    goto out;
 }
