@@ -1,111 +1,111 @@
-#include <stdlib.h>
-#include <string.h>
 #include "includes/HTTPResponse.h"
 
 
-static HTTPResponse_t * parse( HTTPResponse_t *response, char *message )
+static HTTPResponse_t * parse( HTTPResponse_t *this, Message_t *message )
 {
 char *newLine, *strPtr;
 
-   if( ( newLine = strstr( message, "\r\n" ) ) != NULL && strncmp( message, "HTTP/", 5 ) == 0 )
+   if( ( newLine = memmem( message->pdu, message-> size, "\r\n", 2 ) ) != NULL && strncmp( message-> pdu, "HTTP/", 5 ) == 0 )
    {
-      if( ( strPtr = strchr( message, ' ' ) ) != NULL )
+      if( ( strPtr = memchr( message-> pdu, ' ', ( size_t )( newLine - message-> pdu ) ) ) != NULL )
       {
-         if( ( response-> version = strndup( message, ( size_t )( strPtr - message ) ) ) == NULL )
-         {
-            return NULL;
-         }
-         message = strPtr + 1;
+      char *p;
 
-         if( ( strPtr = strchr( message, ' ' ) ) != NULL )
+         *strPtr = '\0';
+         this-> version = message-> pdu;
+
+         p = strPtr + 1;
+
+         if( ( strPtr = memchr( p, ' ', ( size_t )( newLine - p ) ) ) != NULL )
          {
-            if( ( response-> code = strndup( message, ( size_t )( strPtr - message ) ) ) == NULL )
+            if( ( this-> code = ( unsigned int ) strtoul( p, NULL, 10 ) ) == 0 && errno == EINVAL )
             {
                return NULL;
             }
-            message = strPtr + 1;
-            if( ( response-> reason = strndup( message, ( size_t )( newLine - message ) ) ) == NULL )
-            {
-               return NULL;
-            }
-            message = newLine + 2;
-            newLine = strstr( message, "\r\n" );
-            if( newLine - message > 2 )
-            {
-            char *headersEnd;
 
-               if( ( headersEnd = strstr( message, "\r\n\r\n" ) ) != NULL )
-               {
-                  for( ; message < headersEnd; newLine = strstr( message, "\r\n" ) )
-                  {
-                  char *key, *value;
+            p = strPtr + 1;
+            *newLine = '\0';
+            this-> reason = p;
 
-                     if( ( strPtr = strchr( message, ':' ) ) != NULL )
-                     {
-                        if( ( key = strndup( message, ( size_t )( strPtr - message ) ) ) == NULL )
-                        {
-                           return NULL;
-                        }
-                        else
-                        {
-                           strPtr += 2;
-                           if( ( value = strndup( strPtr, ( size_t )( newLine - strPtr ) ) ) == NULL )
-                           {
-                              free( key );
-                              return NULL;
-                           }
-                           else
-                           {
-                              response-> headers-> set( response-> headers, key, value );
-                              free( value );
-                              free( key );
-                           }
-                        }
-                     }
-                     message = newLine + 2;
-                  }
-               }
+            p = newLine + 2;
+            newLine = memmem( p, ( size_t )( message-> pdu - p ), "\r\n\r\n", 4 );
+            if( newLine - p > 4 )
+            {
+               this-> headers-> parse( this-> headers, p, newLine );
             }
          }
-         message += 2;
       }
    }
 
-   if( *message && ( response-> body = strdup( message ) ) == NULL )
-   {
-      return NULL;
-   }
+   this-> body = newLine + 4;
 
-   return response;
+   return this;
 }
 
 
-static void delete( const HTTPResponse_t *response )
+static const char *statusToReason( unsigned int status )
 {
-   free( response-> version );
-   free( response-> code );
-   free( response-> reason );
-   response-> headers-> delete( response-> headers );
-   free( response-> body );
-   free( __DECONST( void *, response ) );
+   if( status == 200 ) return "OK";
+   else if( status == 201 ) return "Created";
+   else if( status == 204 ) return "No Content";
+   else if( status == 400 ) return "Bad Request";
+   else if( status == 401 ) return "Unauthorized";
+   else if( status == 403 ) return "Forbidden";
+   else if( status == 404 ) return "Not Found";
+   else if( status == 500 ) return "Internal Server Error";
+   else if( status == 501 ) return "Not Implemented";
+   else return "UNKNOWN STATUS CODE";
+}
+
+
+//
+// Builds a response message to be sent over the network
+// Returns: the message or NULL on error
+//
+static Message_t *serialize( const HTTPResponse_t *this )
+{
+Message_t *msg = NULL;
+
+   if( ( msg = Message_new() ) != NULL )
+   {
+   char *strHeaders = __DECONST( char *, this-> headers-> serialize( this-> headers ) );
+
+      if( ( msg-> size = ( size_t ) asprintf( &msg-> pdu, "%s %u %s\r\n%s\r\n%s", this-> version, this-> code, statusToReason( this-> code ), strHeaders, this-> body ? this-> body : "" ) ) == ( size_t ) -1 )
+      {
+         msg-> delete( msg );
+         msg = NULL;
+      }
+      free( strHeaders );
+   }
+   return msg;
+}
+
+
+static void delete( HTTPResponse_t *this )
+{
+   this-> headers-> delete( this-> headers );
+   free( this );
 }
 
 
 HTTPResponse_t *HTTPResponse_new( void )
 {
-HTTPResponse_t *response;
+HTTPResponse_t *this;
 
-   if( ( response = calloc( 1, sizeof( HTTPResponse_t ) ) ) != NULL )
+   if( ( this = calloc( 1, sizeof( HTTPResponse_t ) ) ) != NULL )
    {
-      response-> headers = HTTPHeader_new();
-      response-> parse = parse;
-      response-> delete = delete;
-   }
-   else
-   {
-      free( response );
-      response = NULL;
+      if( ( this-> headers = HTTPHeader_new() ) != NULL )
+      {
+         this-> parse = parse;
+         this-> serialize = serialize;
+         this-> delete = delete;
+      }
+      else
+      {
+         free( this );
+         this = NULL;
+      }
    }
 
-   return response;
+   return this;
 }
