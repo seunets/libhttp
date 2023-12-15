@@ -1,34 +1,32 @@
-#include <stdlib.h>
-#include <string.h>
-#include <ctype.h>
 #include "includes/HTTPRequest.h"
 
 
-static HTTPRequest_t * parse( HTTPRequest_t *request, char *message )
+static HTTPRequest_t * parse( HTTPRequest_t *this, Message_t *message )
 {
 char *newLine, *strPtr;
 
-   if( ( newLine = strstr( message, "\r\n" ) ) != NULL )
+   if( ( newLine = memmem( message-> pdu, message-> size, "\r\n", 2 ) ) != NULL )
    {
-      if( ( strPtr = strchr( message, ' ' ) ) != NULL )
+      if( ( strPtr = memchr( message-> pdu, ' ', ( size_t )( newLine - message-> pdu ) ) ) != NULL )
       {
       char *p, *q;
 
-         if( ( request-> method = strndup( message, ( size_t )( strPtr - message ) ) ) == NULL )
+         *strPtr = '\0';
+         this-> method = message-> pdu;
+
+         p = strPtr + 1;
+
+         if( ( strPtr = memchr( p, ' ', ( size_t )( newLine - p ) ) ) != NULL )
+         {
+            *strPtr = '\0';
+            this-> URI = p;
+         }
+         else
          {
             return NULL;
          }
-         message = strPtr + 1;
 
-         strPtr = strchr( message, ' ' );
-         strPtr = strPtr ? strPtr : newLine;
-
-         if( ( request-> URI = strndup( message, ( size_t )( strPtr - message ) ) ) == NULL )
-         {
-            return NULL;
-         }
-
-         for( p = q = strchr( request-> URI, '%' ); p && *p; q = p )
+         for( p = q = strchr( this-> URI, '%' ); p && *p; q = p )
          {
             if( isxdigit( p[ 1 ] ) && isxdigit( p[ 2 ] ) )
             {
@@ -41,81 +39,36 @@ char *newLine, *strPtr;
             p -= 2;
          }
 
-         if( strPtr != newLine )
+         p = strPtr + 1;
+         if( strncmp( p, "HTTP/", 5 ) != 0 )
          {
-            message = strPtr + 1;
-            if( strncmp( message, "HTTP/", 5 ) != 0 || ( request-> version = strndup( message, ( size_t )( newLine - message ) ) ) == NULL )
-            {
-               return NULL;
-            }
-            message = newLine + 2;
-            newLine = strstr( message, "\r\n" );
-            if( newLine - message > 2 )
-            {
-            char *headersEnd;
-
-               if( ( headersEnd = strstr( message, "\r\n\r\n" ) ) != NULL )
-               {
-                  for( ; message < headersEnd; newLine = strstr( message, "\r\n" ) )
-                  {
-                  char *key, *value;
-
-                     if( ( strPtr = strchr( message, ':' ) ) != NULL )
-                     {
-                        if( ( key = strndup( message, ( size_t )( strPtr - message ) ) ) == NULL )
-                        {
-                           return NULL;
-                        }
-                        else
-                        {
-                           strPtr += 2;
-                           if( ( value = strndup( strPtr, ( size_t )( newLine - strPtr ) ) ) == NULL )
-                           {
-                              free( key );
-                              return NULL;
-                           }
-                           else
-                           {
-                              request-> headers-> set( request-> headers, key, value );
-                              free( value );
-                              free( key );
-                           }
-                        }
-                     }
-                     message = newLine + 2;
-                  }
-               }
-               else
-               {
-                  return NULL;
-               }
-            }
-            message += 2;
-            if( strcmp( request-> method, "GET" ) != 0 )
-            {
-            const char *contentLength = request-> headers-> get( request-> headers, "Content-Length" );
-            size_t bodySize;
-
-               if( contentLength == NULL || ( request-> body = malloc( bodySize = strtoull( contentLength, NULL, 10 ) ) ) == NULL )
-               {
-                  return NULL;
-               }
-               memmove( request-> body, message, bodySize );
-            }
-            else
-            {
-               if( *message )
-               {
-                  return NULL;
-               }
-            }
+            return NULL;
          }
-         else
+         *newLine = '\0';
+         this-> version = p;
+
+         p = newLine + 2;
+         newLine = memmem( p, ( size_t )( message-> pdu - p ) + message-> size, "\r\n\r\n", 4 );
+         if( newLine - p > 4 )
          {
-            if( strcmp( request-> method, "GET" ) != 0 )
+            this-> headers-> parse( this-> headers, p, newLine );
+         }
+         if( strcmp( this-> method, "GET" ) != 0 )
+         {
+         const char *contentLength = this-> headers-> get( this-> headers, "Content-Length" );
+
+            if( contentLength == NULL )
             {
                return NULL;
             }
+            this-> body = message-> pdu + message-> size - strtoull( contentLength, NULL, 10 );
+         }
+      }
+      else
+      {
+         if( strcmp( this-> method, "GET" ) != 0 )
+         {
+            return NULL;
          }
       }
    }
@@ -124,36 +77,54 @@ char *newLine, *strPtr;
       return NULL;
    }
 
-   return request;
+   return this;
 }
 
 
-static void delete( const HTTPRequest_t *request )
+static const Message_t *serialize( const HTTPRequest_t *this )
 {
-   free( request-> method );
-   free( request-> URI );
-   free( request-> version );
-   request-> headers-> delete( request-> headers );
-   free( request-> body );
-   free( __DECONST( void *, request ) );
+Message_t *msg;
+
+   if( ( msg = Message_new() ) != NULL )
+   {
+   char *strHeaders = __DECONST( char *, this-> headers-> serialize( this-> headers ) );
+
+      if( ( msg-> size = ( size_t ) asprintf( &msg-> pdu, "%s %s %s\r\n%s\r\n%s", this-> method, this-> URI, this-> version, strHeaders, this-> body ? this-> body : "" ) ) == ( size_t ) -1 )
+      {
+         msg-> delete( msg );
+         msg = NULL;
+      }
+      free( strHeaders );
+   }
+   return msg;
+}
+
+
+static void delete( HTTPRequest_t *this )
+{
+   this-> headers-> delete( this-> headers );
+   free( this );
 }
 
 
 HTTPRequest_t *HTTPRequest_new( void )
 {
-HTTPRequest_t *request;
+HTTPRequest_t *this;
 
-   if( ( request = calloc( 1, sizeof( HTTPRequest_t ) ) ) != NULL )
+   if( ( this = calloc( 1, sizeof( HTTPRequest_t ) ) ) != NULL )
    {
-      request-> headers = HTTPHeader_new();
-      request-> parse = parse;
-      request-> delete = delete;
-   }
-   else
-   {
-      free( request );
-      request = NULL;
+      if( ( this-> headers = HTTPHeader_new() ) != NULL )
+      {
+         this-> parse = parse;
+         this-> serialize = serialize;
+         this-> delete = delete;
+      }
+      else
+      {
+         free( this );
+         this = NULL;
+      }
    }
 
-   return request;
+   return this;
 }
