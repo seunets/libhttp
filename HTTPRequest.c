@@ -103,6 +103,9 @@ Message_t *msg;
 static void delete( HTTPRequest_t *this )
 {
    this-> headers-> delete( this-> headers );
+   free( this-> method );
+   free( this-> URI );
+   free( this-> version );
    free( this );
 }
 
