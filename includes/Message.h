@@ -14,6 +14,7 @@ typedef struct message
    char *pdu;
    int ( *send )( const struct message *, const int );
    int ( *receive )( struct message *, const int );
+   void ( *clear )( struct message * );
    void ( *delete )( struct message * );
 } Message_t;
 
