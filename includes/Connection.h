@@ -20,6 +20,7 @@ typedef struct connection
    int ( *accept )( struct connection * );
    int ( *establish )( struct connection * );
    void ( *delete )( struct connection * );
+   void ( *drop )( struct connection * );
 } Connection_t;
 
 Connection_t *Connection_new( const char *, const int );
