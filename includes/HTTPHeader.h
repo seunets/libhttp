@@ -13,6 +13,7 @@ typedef struct http_header
    const char * ( *get )( const struct http_header *, const char * );
    void ( *parse )( struct http_header *, const char *, const char * );
    const char * ( *serialize )( const struct http_header * );
+   void ( *clear )( struct http_header * );
    void ( *delete )( struct http_header * );
 } HTTPHeader_t;
 
