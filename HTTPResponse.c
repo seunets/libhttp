@@ -83,6 +83,9 @@ Message_t *msg = NULL;
 
 static void delete( HTTPResponse_t *this )
 {
+   free( this-> version );
+   free( this-> reason );
+   free( this-> body );
    this-> headers-> delete( this-> headers );
    free( this );
 }
