@@ -12,32 +12,48 @@ char *newLine, *strPtr;
       char *p;
 
          *strPtr = '\0';
-         this-> version = message-> pdu;
-
-         p = strPtr + 1;
-
-         if( ( strPtr = memchr( p, ' ', ( size_t )( newLine - p ) ) ) != NULL )
+         if( ( this-> version = strdup( message-> pdu ) ) != NULL )
          {
-            if( ( this-> code = ( unsigned int ) strtoul( p, NULL, 10 ) ) == 0 && errno == EINVAL )
-            {
-               return NULL;
-            }
-
             p = strPtr + 1;
-            *newLine = '\0';
-            this-> reason = p;
 
-            p = newLine + 2;
-            newLine = memmem( p, ( size_t )( message-> pdu - p ), "\r\n\r\n", 4 );
-            if( newLine - p > 4 )
+            if( ( strPtr = memchr( p, ' ', ( size_t )( newLine - p ) ) ) != NULL )
             {
-               this-> headers-> parse( this-> headers, p, newLine );
+               if( ( this-> code = ( unsigned int ) strtoul( p, NULL, 10 ) ) == 0 && errno == EINVAL )
+               {
+                  return NULL;
+               }
+
+               p = strPtr + 1;
+               *newLine = '\0';
+               if( ( this-> reason = strdup( p ) ) != NULL )
+               {
+                  p = newLine + 2;
+                  newLine = memmem( p, ( size_t )( message-> pdu - p ), "\r\n\r\n", 4 );
+                  if( newLine - p > 4 )
+                  {
+                     this-> headers-> parse( this-> headers, p, newLine );
+                  }
+               }
+               else
+               {
+                  return NULL;
+               }
             }
+         }
+         else
+         {
+            return NULL;
          }
       }
    }
 
-   this-> body = newLine + 4;
+   this-> bodySize = message-> size - ( newLine + 4 - message-> pdu );
+   if( ( this-> body = malloc( this-> bodySize ) ) == NULL )
+   {
+      return NULL;
+   }
+
+   this-> body = memmove( this-> body, newLine + 4, this-> bodySize );
 
    return this;
 }
