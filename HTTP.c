@@ -7,71 +7,95 @@ static void delete( HTTP_t *this )
    {
       this-> connection-> delete( this-> connection );
    }
+   if( this-> req != NULL )
+   {
+      this-> req-> delete( this-> req );
+   }
+   if( this-> res != NULL )
+   {
+      this-> res-> delete( this-> res );
+   }
    free( this );
 }
 
 
-static HTTPResponse_t * request( HTTP_t *this, const char *hostName, const HTTPRequest_t *req )
+void request( HTTP_t *this, const char *hostName )
 {
-HTTPResponse_t *res;
-
-   if( ( this-> connection != 0 || ( this-> connection = Connection_new( hostName, 80 ) ) != NULL ) )
+   if( ( this-> connection != NULL || ( this-> connection = Connection_new( hostName, 80 ) ) != NULL ) )
    {
       if( this-> connection-> establish( this-> connection ) == 0 )
       {
-         if( ( this-> connection-> message = __DECONST( void *, req-> serialize( req ) ) ) != NULL )
+         if( this-> connection-> message != NULL )
+         {
+            this-> connection-> message-> delete( this-> connection-> message );
+         }
+         if( ( this-> connection-> message = __DECONST( void *, this-> req-> serialize( this-> req ) ) ) != NULL )
          {
             if( this-> connection-> message-> send( this-> connection-> message, this-> connection-> socket ) == -1 )
             {
-               this-> connection-> message-> delete( this-> connection-> message );
-               return NULL;
+               this-> res = NULL;
+               this-> connection-> message-> clear( this-> connection-> message );
+            }
+            else
+            {
+               this-> connection-> message-> clear( this-> connection-> message );
+               this-> connection-> message-> receive( this-> connection-> message, this-> connection-> socket );
+
+               if( this-> res != NULL )
+               {
+                  this-> res-> delete( this-> res );
+               }
+               if( ( this-> res = HTTPResponse_new() ) != NULL )
+               {
+                  this-> res = this-> res-> parse( this-> res, this-> connection-> message );
+               }
             }
          }
       }
+      else
+      {
+         this-> connection-> delete( this-> connection );
+         this-> connection = NULL;
+      }
    }
-   this-> connection-> message-> delete( this-> connection-> message );
-
-   res = HTTPResponse_new();
-
-   this-> connection-> message-> receive( this-> connection-> message, this-> connection-> socket );
-
-   return res-> parse( res, this-> connection-> message );
 }
 
 
-static void handleConnection( HTTP_t *this, const HTTPResponse_t * ( *callback )( const HTTPRequest_t *req ) )
+static void handleConnection( HTTP_t *this, void ( *callback )( HTTP_t *http ) )
 {
-HTTPResponse_t *res;
-HTTPRequest_t *req;
-
-   if( ( req = HTTPRequest_new() ) == NULL )
+   if( ( this-> req = HTTPRequest_new() ) != NULL )
    {
-      errno = ENOMEM;
-   }
-   else
-   {
-      if( req-> parse( req, this-> connection-> message ) == NULL )
+      if( this-> req-> parse( this-> req, this-> connection-> message ) != NULL )
       {
-         errno = EINVAL;
+         if( ( this-> res = HTTPResponse_new() ) != NULL )
+         {
+            callback( this );
+
+            this-> connection-> message-> delete( this-> connection-> message );
+            if( ( this-> connection-> message = __DECONST( void *, this-> res-> serialize( this-> res ) ) ) != NULL )
+            {
+               this-> connection-> message-> send( this-> connection-> message, this-> connection-> socket );
+               this-> connection-> message-> delete( this-> connection-> message );
+               this-> connection-> message = NULL;
+               // IF version 1.0 or Connection header = close
+               this-> connection-> drop( this-> connection );
+            }
+            this-> res-> delete( this-> res );
+            this-> res = NULL;
+            this-> req-> delete( this-> req );
+            this-> req = NULL;
+         }
       }
       else
       {
-         res = __DECONST( HTTPResponse_t *, callback( req ) );
-
-         this-> connection-> message-> delete( this-> connection-> message );
-         this-> connection-> message = res-> serialize( res );
-
-         this-> connection-> message-> send( this-> connection-> message, this-> connection-> socket );
-         res-> delete( res );
-         this-> connection-> message-> delete( this-> connection-> message );
-         this-> connection-> message = NULL;
-         req-> delete( req );
+         this-> connection-> drop( this-> connection );
       }
    }
+   this-> connection-> drop( this-> connection );
 }
 
 
-static int serve( HTTP_t *this, const char *hostName, const HTTPResponse_t * ( callback )( const HTTPRequest_t * ) )
+static void serve( HTTP_t *this, const char *hostName, void ( callback )( HTTP_t * ) )
 {
    if( ( this-> connection = Connection_new( hostName, 80 ) ) != NULL )
    {
@@ -80,8 +104,6 @@ static int serve( HTTP_t *this, const char *hostName, const HTTPResponse_t * ( c
          handleConnection( this, callback );
       }
    }
-
-   return errno;
 }
 
 
