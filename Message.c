@@ -2,9 +2,15 @@
 #include <stdio.h>
 
 
-static void delete( Message_t *this )
+static void clear( Message_t *this )
 {
    free( this-> pdu );
+}
+
+
+static void delete( Message_t *this )
+{
+   clear( this );
    free( this );
 }
 
@@ -84,6 +90,7 @@ Message_t *this;
    {
       this-> send = send_;
       this-> receive = receive;
+      this-> clear = clear;
       this-> delete = delete;
    }
 
