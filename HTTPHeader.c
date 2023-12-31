@@ -117,13 +117,20 @@ long int i = find( this-> keys, key );
 }
 
 
-static void delete( HTTPHeader_t *this )
+static void clear( HTTPHeader_t *this )
 {
    for( long int i = 0; this-> keys != NULL && this-> keys[ i ] != NULL; i++ )
    {
       free( this-> keys[ i ] );
       free( this-> values[ i ] );
    }
+   reallocHeaders( this, 1 );
+}
+
+
+static void delete( HTTPHeader_t *this )
+{
+   clear( this );
    free( this-> keys );
    free( this-> values );
    free( this );
@@ -195,6 +202,7 @@ HTTPHeader_t *this;
             this-> get = get;
             this-> parse = parse;
             this-> serialize = serialize;
+            this-> clear = clear;
             this-> delete = delete;
          }
          else
