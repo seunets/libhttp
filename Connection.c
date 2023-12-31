@@ -14,6 +14,11 @@ static void cleanup( void )
 }
 
 
+static void drop( Connection_t *this )
+{
+   close( this-> socket );
+}
+
 static void delete( Connection_t *this )
 {
    if( this-> peer != NULL )
@@ -208,7 +213,7 @@ int j, n;
       setupSignals();
    }
 
-   while( isListening && ( j = kevent( this-> kq, NULL, 0, this-> event, ( int ) eventListSize, NULL ) ) != -1 )
+   while( isListening && ( ( j = kevent( this-> kq, NULL, 0, this-> event, ( int ) eventListSize, NULL ) ) != -1 || errno == EINTR ) )
    {
       for( int i = 0; i < j; i++ )
       {
@@ -240,6 +245,10 @@ int j, n;
 
                if( ( tmp = accept( sockfd, NULL, NULL ) ) == -1 )
                {
+                  if( errno == ECONNABORTED )
+                  {
+                     continue;
+                  }
                   if( close( sockfd ) == -1 )
                   {
                      goto outerr;
@@ -336,6 +345,7 @@ Connection_t *this;
       this-> accept = acceptor;
       this-> establish = establish;
       this-> delete = delete;
+      this-> drop = drop;
    }
 
    return this;
