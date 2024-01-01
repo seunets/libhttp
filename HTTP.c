@@ -1,3 +1,4 @@
+#include <sys/param.h>
 #include "includes/HTTP.h"
 
 
@@ -21,6 +22,18 @@ static void delete( HTTP_t *this )
 
 void request( HTTP_t *this, const char *hostName )
 {
+static char host[ MAXHOSTNAMELEN + 1 ];
+
+   if( strcmp( hostName, host ) != 0 )
+   {
+      strcpy( host, hostName );
+      if( this-> connection != NULL )
+      {
+         this-> connection-> delete( this-> connection );
+         this-> connection = NULL;
+      }
+   }
+
    if( ( this-> connection != NULL || ( this-> connection = Connection_new( hostName, 80 ) ) != NULL ) )
    {
       if( this-> connection-> establish( this-> connection ) == 0 )
