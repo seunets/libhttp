@@ -13,6 +13,7 @@ typedef struct http_request
    char *version;
    HTTPHeader_t *headers;
    char *body;
+   unsigned long bodySize;
    char remoteAddr[ INET6_ADDRSTRLEN ];
    char pad[ 2 ];
    struct http_request * ( *parse )( struct http_request *, Message_t * );
