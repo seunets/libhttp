@@ -45,15 +45,15 @@ char *newLine, *strPtr;
             return NULL;
          }
       }
-   }
 
-   this-> bodySize = message-> size - ( newLine + 4 - message-> pdu );
-   if( ( this-> body = malloc( this-> bodySize ) ) == NULL )
-   {
-      return NULL;
-   }
+      this-> bodySize = message-> size - ( newLine + 4 - message-> pdu );
+      if( ( this-> body = malloc( this-> bodySize ) ) == NULL )
+      {
+         return NULL;
+      }
 
-   this-> body = memmove( this-> body, newLine + 4, this-> bodySize );
+      this-> body = memmove( this-> body, newLine + 4, this-> bodySize );
+   }
 
    return this;
 }
