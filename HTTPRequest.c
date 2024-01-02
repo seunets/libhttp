@@ -12,64 +12,75 @@ char *newLine, *strPtr;
       char *p, *q;
 
          *strPtr = '\0';
-         this-> method = message-> pdu;
-
-         p = strPtr + 1;
-
-         if( ( strPtr = memchr( p, ' ', ( size_t )( newLine - p ) ) ) != NULL )
+         if( ( this-> method = strdup( message-> pdu ) ) != NULL )
          {
-            *strPtr = '\0';
-            this-> URI = p;
-         }
-         else
-         {
-            return NULL;
-         }
+            p = strPtr + 1;
 
-         for( p = q = strchr( this-> URI, '%' ); p && *p; q = p )
-         {
-            if( isxdigit( p[ 1 ] ) && isxdigit( p[ 2 ] ) )
+            if( ( strPtr = memchr( p, ' ', ( size_t )( newLine - p ) ) ) != NULL )
             {
-               *q = ( char )( ( p[ 1 ] >= 'A' ? ( p[ 1 ] & 0xdf ) - 'A' + 10 : p[ 1 ] - '0' ) << 4 );
-               *q += p[ 2 ] >= 'A' ? ( p[ 2 ] & 0xdf ) - 'A' + 10 : p[ 2 ] - '0';
+               *strPtr = '\0';
+               if( ( this-> URI = strdup( p ) ) == NULL )
+               {
+                  return NULL;
+               }
             }
-            p = strchr( q, '%' );
-            p = p ? p : strchr( q, 0 );
-            strcpy( q + 1, q + 3 );
-            p -= 2;
-         }
-
-         p = strPtr + 1;
-         if( strncmp( p, "HTTP/", 5 ) != 0 )
-         {
-            return NULL;
-         }
-         *newLine = '\0';
-         this-> version = p;
-
-         p = newLine + 2;
-         newLine = memmem( p, ( size_t )( message-> pdu - p ) + message-> size, "\r\n\r\n", 4 );
-         if( newLine - p > 4 )
-         {
-            this-> headers-> parse( this-> headers, p, newLine );
-         }
-         if( strcmp( this-> method, "GET" ) != 0 )
-         {
-         const char *contentLength = this-> headers-> get( this-> headers, "Content-Length" );
-
-            if( contentLength == NULL )
+            else
             {
                return NULL;
             }
-            this-> body = message-> pdu + message-> size - strtoull( contentLength, NULL, 10 );
+
+            for( p = q = strchr( this-> URI, '%' ); p && *p; q = p )
+            {
+               if( isxdigit( p[ 1 ] ) && isxdigit( p[ 2 ] ) )
+               {
+                  *q = ( char )( ( p[ 1 ] >= 'A' ? ( p[ 1 ] & 0xdf ) - 'A' + 10 : p[ 1 ] - '0' ) << 4 );
+                  *q += p[ 2 ] >= 'A' ? ( p[ 2 ] & 0xdf ) - 'A' + 10 : p[ 2 ] - '0';
+               }
+               p = strchr( q, '%' );
+               p = p ? p : strchr( q, 0 );
+               strcpy( q + 1, q + 3 );
+               p -= 2;
+            }
+
+            p = strPtr + 1;
+            if( strncmp( p, "HTTP/", 5 ) != 0 )
+            {
+               return NULL;
+            }
+            *newLine = '\0';
+            if( ( this-> version = strdup( p ) ) != NULL )
+            {
+               p = newLine + 2;
+               newLine = memmem( p, ( size_t )( message-> pdu - p ) + message-> size, "\r\n\r\n", 4 );
+               if( newLine - p > 4 )
+               {
+                  this-> headers-> parse( this-> headers, p, newLine );
+               }
+               if( strcmp( this-> method, "GET" ) != 0 )
+               {
+               const char *contentLength = this-> headers-> get( this-> headers, "Content-Length" );
+
+                  if( contentLength == NULL )
+                  {
+                     return NULL;
+                  }
+                  this-> bodySize = strtoull( contentLength, NULL, 10 );
+                  if( ( this-> body = malloc( this-> bodySize ) ) == NULL )
+                  {
+                     return NULL;
+                  }
+                  memmove( this-> body, message-> pdu + message-> size - this-> bodySize, this-> bodySize );
+               }
+            }
+            else
+            {
+               return NULL;
+            }
          }
       }
       else
       {
-         if( strcmp( this-> method, "GET" ) != 0 )
-         {
-            return NULL;
-         }
+         return NULL;
       }
    }
    else
@@ -106,6 +117,7 @@ static void delete( HTTPRequest_t *this )
    free( this-> method );
    free( this-> URI );
    free( this-> version );
+   free( this-> body );
    free( this );
 }
 
