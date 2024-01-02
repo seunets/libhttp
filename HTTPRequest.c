@@ -137,6 +137,7 @@ HTTPRequest_t *this;
       else
       {
          free( this );
+         return NULL;
       }
    }
 
