@@ -73,6 +73,7 @@ ssize_t bytesRead;
                {
                   free( this );
                   this = NULL;
+                  break;
                }
             }
          }
