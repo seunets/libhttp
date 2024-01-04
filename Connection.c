@@ -19,6 +19,7 @@ static void drop( Connection_t *this )
    close( this-> socket );
 }
 
+
 static void delete( Connection_t *this )
 {
    if( this-> peer != NULL )
@@ -103,7 +104,7 @@ struct kevent *tmp;
    if( ( tmp = realloc( this-> event, sizeof( struct kevent ) * ( eventListSize + 1 ) ) ) != NULL )
    {
       this-> event = tmp;
-      EV_SET( &this-> event[ eventListSize ], sockfd, EVFILT_READ, EV_ADD | EV_ENABLE, 0, 0, NULL );
+      EV_SET( &this-> event[ eventListSize ], sockfd, EVFILT_READ, EV_ADD, 0, 0, NULL );
       eventListSize++;
    }
 
@@ -113,12 +114,15 @@ struct kevent *tmp;
 
 static struct kevent *eventListRemove( Connection_t *this )
 {
-struct kevent *tmp;
+struct kevent *tmp = NULL;
 
-   if( ( tmp = realloc( this-> event, sizeof( struct kevent ) * eventListSize - 1 ) ) != NULL )
+   if( kevent( this-> kq, this-> event, 1, NULL, 0, NULL ) != -1 )
    {
-      this-> event = tmp;
-      eventListSize--;
+      if( ( tmp = realloc( this-> event, sizeof( struct kevent ) * eventListSize - 1 ) ) != NULL )
+      {
+         this-> event = tmp;
+         eventListSize--;
+      }
    }
 
    return tmp;
@@ -223,6 +227,7 @@ int j, n;
          {
             free( this-> peer );
             this-> peer = NULL;
+            EV_SET( this-> event, sockfd, EVFILT_READ, EV_DELETE, 0, 0, NULL );
             if( eventListRemove( this ) == NULL )
             {
                goto outerr;
