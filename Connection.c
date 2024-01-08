@@ -19,7 +19,6 @@ static void drop( Connection_t *this )
    close( this-> socket );
 }
 
-
 static void delete( Connection_t *this )
 {
    if( this-> peer != NULL )
@@ -104,7 +103,7 @@ struct kevent *tmp;
    if( ( tmp = realloc( this-> event, sizeof( struct kevent ) * ( eventListSize + 1 ) ) ) != NULL )
    {
       this-> event = tmp;
-      EV_SET( &this-> event[ eventListSize ], sockfd, EVFILT_READ, EV_ADD, 0, 0, NULL );
+      EV_SET( &this-> event[ eventListSize ], sockfd, EVFILT_READ, EV_ADD | EV_ENABLE, 0, 0, NULL );
       eventListSize++;
    }
 
@@ -114,15 +113,12 @@ struct kevent *tmp;
 
 static struct kevent *eventListRemove( Connection_t *this )
 {
-struct kevent *tmp = NULL;
+struct kevent *tmp;
 
-   if( kevent( this-> kq, this-> event, 1, NULL, 0, NULL ) != -1 )
+   if( ( tmp = realloc( this-> event, sizeof( struct kevent ) * eventListSize - 1 ) ) != NULL )
    {
-      if( ( tmp = realloc( this-> event, sizeof( struct kevent ) * eventListSize - 1 ) ) != NULL )
-      {
-         this-> event = tmp;
-         eventListSize--;
-      }
+      this-> event = tmp;
+      eventListSize--;
    }
 
    return tmp;
@@ -217,7 +213,7 @@ int j, n;
       setupSignals();
    }
 
-   while( isListening && ( ( j = kevent( this-> kq, NULL, 0, this-> event, ( int ) eventListSize, NULL ) ) != -1 || errno == EINTR ) )
+   while( isListening && ( ( j = kevent( this-> kq, NULL, 0, this-> event, ( int ) eventListSize, NULL ) ) != -1 || errno == EINTR || errno == ECONNABORTED || errno == ECONNRESET ) )
    {
       for( int i = 0; i < j; i++ )
       {
@@ -227,12 +223,11 @@ int j, n;
          {
             free( this-> peer );
             this-> peer = NULL;
-            EV_SET( this-> event, sockfd, EVFILT_READ, EV_DELETE, 0, 0, NULL );
             if( eventListRemove( this ) == NULL )
             {
                goto outerr;
             }
-            if( close( sockfd ) == -1 )
+            if( close( sockfd ) == -1 && errno != ECONNRESET )
             {
                goto outerr;
             }
@@ -254,7 +249,7 @@ int j, n;
                   {
                      continue;
                   }
-                  if( close( sockfd ) == -1 )
+                  if( close( sockfd ) == -1 && errno != ECONNRESET )
                   {
                      goto outerr;
                   }
@@ -288,17 +283,12 @@ int j, n;
                   if( this-> message-> receive( this-> message, sockfd ) == EAGAIN )
                   {
                      errno = 0;
+                     goto out;
                   }
-                  goto out;
                }
             }
          }
       }
-   }
-
-   if( errno != EINTR )
-   {
-      goto outerr;
    }
 
 out:
@@ -306,7 +296,6 @@ out:
 
 outerr:
    this = NULL;
-   free( serverSocket );
    goto out;
 }
 
