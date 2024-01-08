@@ -91,7 +91,7 @@ static void handleConnection( HTTP_t *this, void ( *callback )( HTTP_t *http ) )
                this-> connection-> message-> delete( this-> connection-> message );
                this-> connection-> message = NULL;
                // IF version 1.0 or Connection header = close
-               this-> connection-> drop( this-> connection );
+               // this-> connection-> drop( this-> connection );
             }
             this-> res-> delete( this-> res );
             this-> res = NULL;
