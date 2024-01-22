@@ -6,9 +6,13 @@ static int serverPort;
 static int *serverSocket = NULL;
 static unsigned int eventListSize = 0;
 static int isListening = 0;
+static struct sigaction oldint, oldterm;
 
-static void cleanup( void )
+
+static void cleanup( int signo )
 {
+   if( signo == SIGTERM && oldterm.sa_handler ) oldterm.sa_handler( signo );
+   else if( signo == SIGINT && oldint.sa_handler ) oldint.sa_handler( signo );
    free( serverSocket );
    isListening = 0;
 }
@@ -58,19 +62,22 @@ char *sport;
 
 static void setupSignals( void )
 {
-struct sigaction act;
+struct sigaction act, oact;
 
    sigemptyset( &act.sa_mask );
    act.sa_flags = 0;
-   act.sa_handler = ( sig_t ) cleanup;
-   if( sigaction( SIGINT, &act, NULL ) == -1 )
+   act.sa_handler = cleanup;
+   if( sigaction( SIGINT, &act, &oact ) == -1 )
    {
       exit( EXIT_FAILURE );
    }
-   if( sigaction( SIGTERM, &act, NULL ) == -1 )
+   oldint = oact;
+
+   if( sigaction( SIGTERM, &act, &oact ) == -1 )
    {
       exit( EXIT_FAILURE );
    }
+   oldterm = oact;
 }
 
 
