@@ -28,10 +28,14 @@ char *newLine, *strPtr;
                if( ( this-> reason = strdup( p ) ) != NULL )
                {
                   p = newLine + 2;
-                  newLine = memmem( p, ( size_t )( message-> pdu - p ), "\r\n\r\n", 4 );
+                  newLine = memmem( p, message-> size  - ( size_t )( p - message-> pdu ), "\r\n\r\n", 4 );
                   if( newLine - p > 4 )
                   {
                      this-> headers-> parse( this-> headers, p, newLine );
+                  }
+                  else
+                  {
+                     newLine = p - 2;
                   }
                }
                else
