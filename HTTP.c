@@ -91,7 +91,7 @@ static void handleConnection( HTTP_t *this, void ( *callback )( HTTP_t *http ) )
                this-> connection-> message-> delete( this-> connection-> message );
                this-> connection-> message = NULL;
                // IF version 1.0 or Connection header = close
-               // this-> connection-> drop( this-> connection );
+               this-> connection-> drop( this-> connection );
             }
             this-> res-> delete( this-> res );
             this-> res = NULL;
@@ -104,17 +104,19 @@ static void handleConnection( HTTP_t *this, void ( *callback )( HTTP_t *http ) )
          this-> connection-> drop( this-> connection );
       }
    }
-   this-> connection-> drop( this-> connection );
 }
 
 
 static void serve( HTTP_t *this, const char *hostName, void ( callback )( HTTP_t * ) )
 {
-   if( ( this-> connection = Connection_new( hostName, 80 ) ) != NULL )
+   while( errno != EINTR )
    {
-      while( this-> connection-> accept( this-> connection ) == 0 && errno != EINTR )
+      if( ( this-> connection = Connection_new( hostName, 80 ) ) != NULL )
       {
-         handleConnection( this, callback );
+         while( this-> connection && this-> connection-> accept( this-> connection ) == 0 )
+         {
+            handleConnection( this, callback );
+         }
       }
    }
 }
