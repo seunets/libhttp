@@ -100,7 +100,7 @@ Message_t *msg;
    {
    char *strHeaders = __DECONST( char *, this-> headers-> serialize( this-> headers ) );
 
-      if( ( msg-> size = ( size_t ) asprintf( &msg-> pdu, "%s %s %s\r\n%s\r\n%s", this-> method, this-> URI, this-> version, strHeaders, this-> body ? this-> body : "" ) ) == ( size_t ) -1 )
+      if( ( msg-> size = ( size_t ) asprintf( &msg-> pdu, "%s %s %s\r\n%s\r\n%s", this-> method, this-> URI, this-> version, strHeaders, this-> bodySize ? this-> body : "" ) ) == ( size_t ) -1 )
       {
          msg-> delete( msg );
          msg = NULL;
