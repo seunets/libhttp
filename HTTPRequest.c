@@ -65,7 +65,7 @@ char *newLine, *strPtr;
                      return NULL;
                   }
                   this-> bodySize = strtoull( contentLength, NULL, 10 );
-                  if( ( this-> body = malloc( this-> bodySize ) ) == NULL )
+                  if( ( this-> body = calloc( this-> bodySize + 1, sizeof( char ) ) ) == NULL )
                   {
                      return NULL;
                   }
