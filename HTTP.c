@@ -119,7 +119,6 @@ static void serve( HTTP_t *this, const char *hostName, void ( callback )( HTTP_t
          }
       }
    }
-   this-> connection-> delete( this-> connection );
 }
 
 
