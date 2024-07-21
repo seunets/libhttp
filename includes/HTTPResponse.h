@@ -12,9 +12,11 @@ typedef struct http_response
    char *reason;
    HTTPHeader_t *headers;
    char *body;
-   unsigned long bodySize;
+   size_t bodySize;
    struct http_response * ( *parse )( struct http_response *, Message_t * );
    Message_t * ( *serialize )( const struct http_response * );
+   char *( *setVersion )( struct http_response *, const char * );
+   char *( *setBody )(  struct http_response *, const char *, size_t );
    void ( *delete )( struct http_response * );
 } HTTPResponse_t;
 
