@@ -90,14 +90,56 @@ Message_t *msg = NULL;
    {
    char *strHeaders = __DECONST( char *, this-> headers-> serialize( this-> headers ) );
 
-      if( ( msg-> size = ( size_t ) asprintf( &msg-> pdu, "%s %u %s\r\n%s\r\n%s", this-> version, this-> code, statusToReason( this-> code ), strHeaders, this-> body ? this-> body : "" ) ) == ( size_t ) -1 )
+      if( ( msg-> size = ( size_t ) asprintf( &msg-> pdu, "%s %u %s\r\n%s\r\n", this-> version, this-> code, statusToReason( this-> code ), strHeaders ) ) != ( size_t ) -1 )
       {
-         msg-> delete( msg );
-         msg = NULL;
+      char *tmp;
+
+         if( ( tmp = realloc( msg-> pdu, msg-> size + this-> bodySize ) ) != NULL )
+         {
+            msg-> pdu = tmp;
+            memcpy( msg-> pdu + msg-> size, this-> body, this-> bodySize );
+            msg-> size += this-> bodySize;
+         }
+         else
+         {
+            goto outerr;
+         }
+      }
+      else
+      {
+         goto outerr;
       }
       free( strHeaders );
    }
+
+out:
    return msg;
+
+outerr:
+   msg-> delete( msg );
+   msg = NULL;
+   goto out;
+}
+
+static char *setVersion( HTTPResponse_t *this, const char *version )
+{
+   free( this-> version );
+   return this-> version = strdup( version );
+}
+
+static char *setBody( HTTPResponse_t *this, const char *body, size_t size )
+{
+   free( this-> body );
+   if( ( this-> body = malloc( size ) ) != NULL )
+   {
+      this-> bodySize = size;
+      memcpy( this-> body, body, size );
+   }
+   else
+   {
+      this-> bodySize = 0;
+   }
+   return this-> body;
 }
 
 
@@ -119,6 +161,8 @@ HTTPResponse_t *this;
    {
       if( ( this-> headers = HTTPHeader_new() ) != NULL )
       {
+         this-> setVersion = setVersion;
+         this-> setBody = setBody;
          this-> parse = parse;
          this-> serialize = serialize;
          this-> delete = delete;
