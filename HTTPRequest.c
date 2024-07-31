@@ -100,14 +100,72 @@ Message_t *msg;
    {
    char *strHeaders = __DECONST( char *, this-> headers-> serialize( this-> headers ) );
 
-      if( ( msg-> size = ( size_t ) asprintf( &msg-> pdu, "%s %s %s\r\n%s\r\n%s", this-> method, this-> URI, this-> version, strHeaders, this-> bodySize ? this-> body : "" ) ) == ( size_t ) -1 )
+      if( ( msg-> size = ( size_t ) asprintf( &msg-> pdu, "%s %s %s\r\n%s\r\n", this-> method, this-> URI, this-> version, strHeaders ) ) != ( size_t ) -1 )
       {
-         msg-> delete( msg );
-         msg = NULL;
+      char *tmp;
+
+         if( ( tmp = realloc( msg-> pdu, msg-> size + this-> bodySize ) ) != NULL )
+         {
+            msg-> pdu = tmp;
+            memcpy( msg-> pdu + msg-> size, this-> body, this-> bodySize );
+            msg-> size += this-> bodySize;
+         }
+         else
+         {
+            goto outerr;
+         }
+      }
+      else
+      {
+         goto outerr;
       }
       free( strHeaders );
    }
+
+out:
    return msg;
+
+outerr:
+   msg-> delete( msg );
+   msg = NULL;
+   goto out;
+}
+
+
+static char *setMethod( HTTPRequest_t *this, const char *method )
+{
+   free( this-> method );
+   return this-> method = strdup( method );
+}
+
+
+static char *setVersion( HTTPRequest_t *this, const char *version )
+{
+   free( this-> version );
+   return this-> version = strdup( version );
+}
+
+
+static char *setURI( HTTPRequest_t *this, const char *URI )
+{
+   free( this-> URI );
+   return this-> URI = strdup( URI );
+}
+
+
+static char *setBody( HTTPRequest_t *this, const char *body, size_t size )
+{
+   free( this-> body );
+   if( ( this-> body = malloc( size ) ) != NULL )
+   {
+      this-> bodySize = size;
+      memcpy( this-> body, body, size );
+   }
+   else
+   {
+      this-> bodySize = 0;
+   }
+   return this-> body;
 }
 
 
@@ -115,8 +173,8 @@ static void delete( HTTPRequest_t *this )
 {
    this-> headers-> delete( this-> headers );
    free( this-> method );
-   free( this-> URI );
    free( this-> version );
+   free( this-> URI );
    free( this-> body );
    free( this );
 }
@@ -132,6 +190,10 @@ HTTPRequest_t *this;
       {
          this-> parse = parse;
          this-> serialize = serialize;
+         this-> setMethod = setMethod;
+         this-> setVersion = setVersion;
+         this-> setURI = setURI;
+         this-> setBody = setBody;
          this-> delete = delete;
       }
       else
