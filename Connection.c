@@ -99,7 +99,6 @@ char peer[ INET6_ADDRSTRLEN ];
       }
    }
 
-   memset( peer, 0, INET6_ADDRSTRLEN );
    return strdup( peer );
 }
 
