@@ -20,8 +20,9 @@ static void delete( HTTP_t *this )
 }
 
 
-void request( HTTP_t *this, const char *hostName )
+int request( HTTP_t *this, const char *hostName )
 {
+int rv = 0;
 static char host[ MAXHOSTNAMELEN + 1 ];
 
    if( strcmp( hostName, host ) != 0 )
@@ -72,8 +73,10 @@ static char host[ MAXHOSTNAMELEN + 1 ];
       {
          this-> connection-> delete( this-> connection );
          this-> connection = NULL;
+         rv = 1;
       }
    }
+   return rv;
 }
 
 
