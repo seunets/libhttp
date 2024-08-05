@@ -52,15 +52,18 @@ static char host[ MAXHOSTNAMELEN + 1 ];
             else
             {
                this-> connection-> message-> clear( this-> connection-> message );
-               this-> connection-> message-> receive( this-> connection-> message, this-> connection-> socket );
 
                if( this-> res != NULL )
                {
                   this-> res-> delete( this-> res );
+                  this-> res = NULL;
                }
-               if( ( this-> res = HTTPResponse_new() ) != NULL )
+               if( this-> connection-> message-> receive( this-> connection-> message, this-> connection-> socket ) == 0 )
                {
-                  this-> res = this-> res-> parse( this-> res, this-> connection-> message );
+                  if( ( this-> res = HTTPResponse_new() ) != NULL )
+                  {
+                     this-> res = this-> res-> parse( this-> res, this-> connection-> message );
+                  }
                }
             }
          }
