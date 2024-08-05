@@ -320,7 +320,7 @@ struct addrinfo *res, *resp;
          {
             continue;
          }
-      
+
          if( connect( this-> socket, resp-> ai_addr, resp-> ai_addrlen ) == -1 )
          {
             rv = errno;
