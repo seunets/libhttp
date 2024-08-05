@@ -21,7 +21,9 @@ typedef struct http
 These elements describe an HTTP type and a set of functions performing various actions. These functions take a pointer to a structure as returned by HTTP_new(), and sometimes one or more pointers to data/callback functions.
 
 ___request___ A routine that makes a request for a server. It takes a pointer for an http structure and a hostname.
+
 ___serve___ A routine that start a web server. It takes a pointer for an http structure, a listen name or address, and a callback routine to handle requests.
+
 ___delete___ A routine that free any resources associated with an HTTP structure.
 
 ## Usage examples
