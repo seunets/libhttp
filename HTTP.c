@@ -44,7 +44,7 @@ static char host[ MAXHOSTNAMELEN + 1 ];
          }
          if( ( this-> connection-> message = __DECONST( void *, this-> req-> serialize( this-> req ) ) ) != NULL )
          {
-            if( this-> connection-> message-> send( this-> connection-> message, this-> connection-> socket ) == -1 )
+            if( this-> connection-> message-> send( this-> connection-> message, this-> connection-> socket ) != 0 )
             {
                this-> res = NULL;
                this-> connection-> message-> clear( this-> connection-> message );
