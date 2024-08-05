@@ -10,7 +10,7 @@ typedef struct http
    Connection_t *connection;
    HTTPRequest_t *req;
    HTTPResponse_t *res;
-   void ( *request )( struct http *, const char * );
+   int ( *request )( struct http *, const char * );
    void ( *serve )( struct http *, const char *, void ( * )( struct http * ) );
    void ( *delete )( struct http * );
 } HTTP_t;
