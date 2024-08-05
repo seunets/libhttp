@@ -309,6 +309,7 @@ outerr:
 
 static int establish( Connection_t *this )
 {
+int rv = 0;
 struct addrinfo *res, *resp;
 
    if( ( res = resolve( serverName, serverPort ) ) != NULL )
@@ -319,19 +320,19 @@ struct addrinfo *res, *resp;
          {
             continue;
          }
-
+      
          if( connect( this-> socket, resp-> ai_addr, resp-> ai_addrlen ) == -1 )
          {
+            rv = errno;
             close( this-> socket );
-            this-> socket = errno = 0;
+            this-> socket = 0;
             continue;
          }
          break;
       }
    }
    freeaddrinfo( res );
-
-   return errno;
+   return rv;
 }
 
 
