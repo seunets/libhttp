@@ -288,6 +288,11 @@ int j, n;
                   }
                   this-> socket = sockfd;
                   this-> message-> receive( this-> message, sockfd );
+                  if( errno == EAGAIN )
+                  {
+                     errno = 0;
+                     goto out;
+                  }
                }
             }
          }
