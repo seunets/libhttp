@@ -13,7 +13,7 @@ typedef struct message
    size_t size;
    char *pdu;
    int ( *send )( const struct message *, const int );
-   int ( *receive )( struct message *, const int );
+   ssize_t ( *receive )( struct message *, const int );
    void ( *clear )( struct message * );
    void ( *delete )( struct message * );
 } Message_t;
