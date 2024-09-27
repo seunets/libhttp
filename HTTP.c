@@ -59,7 +59,7 @@ static char host[ MAXHOSTNAMELEN + 1 ];
                   this-> res-> delete( this-> res );
                   this-> res = NULL;
                }
-               if( this-> connection-> message-> receive( this-> connection-> message, this-> connection-> socket ) == 0 )
+               if( this-> connection-> message-> receive( this-> connection-> message, this-> connection-> socket ) > 0 )
                {
                   if( ( this-> res = HTTPResponse_new() ) != NULL )
                   {
