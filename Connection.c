@@ -287,11 +287,7 @@ int j, n;
                      goto outerr;
                   }
                   this-> socket = sockfd;
-                  if( this-> message-> receive( this-> message, sockfd ) == EAGAIN )
-                  {
-                     errno = 0;
-                     goto out;
-                  }
+                  this-> message-> receive( this-> message, sockfd );
                }
             }
          }
