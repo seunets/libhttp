@@ -38,7 +38,7 @@ char *tmp;
 }
 
 
-static int receive( Message_t *this, int clientSocket )
+static ssize_t receive( Message_t *this, int clientSocket )
 {
 char buffer[ BUFFERSIZE ];
 ssize_t bytesRead;
@@ -72,7 +72,8 @@ ssize_t bytesRead;
          }
       }
    }
-   return errno;
+
+   return this-> size;
 }
 
 
